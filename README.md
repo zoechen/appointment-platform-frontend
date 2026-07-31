@@ -29,12 +29,15 @@ appointment-platform-frontend/
       useResponsive.js       RWD 斷點 hook
       useRealtimeSync.js       Socket.IO 事件轉發到各 store
       sessionStorage.js         登入狀態持久化（AsyncStorage，Web 會自動用 localStorage）
+  apps/admin/             系統管理後台（純 React + Vite，跨租戶最高權限，見 apps/admin/README.md）
 ```
 
 之所以拆成 `packages/core` + `apps/mobile` 兩層，是為了保留彈性：
 現在雖然是同一份 UI 跑三端，但如果之後想拆一個「完全獨立的行銷官網」
 或「純 Web 後台」，`packages/core` 的 API/狀態管理邏輯可以直接被
-新的 `apps/xxx` 專案引用，不用重寫。
+新的 `apps/xxx` 專案引用，不用重寫。`apps/admin` 是第一個實例——不過它是
+完全獨立的管理者系統（不同的登入、不同的 API），所以沒有沿用
+`packages/core`，自己寫了一個最小的 API client，詳見 `apps/admin/README.md`。
 
 ## 為什麼選 @ant-design/react-native
 
