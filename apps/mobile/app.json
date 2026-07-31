@@ -1,0 +1,34 @@
+{
+  "expo": {
+    "name": "預約管理",
+    "slug": "appointment-platform",
+    "scheme": "appointmentplatform",
+    "version": "0.1.0",
+    "orientation": "default",
+    "userInterfaceStyle": "automatic",
+    "icon": "./assets/icon.png",
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0F172A"
+    },
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.example.appointmentplatform"
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/icon.png",
+        "backgroundColor": "#0F172A"
+      },
+      "package": "com.example.appointmentplatform"
+    },
+    "web": {
+      "bundler": "metro",
+      "favicon": "./assets/favicon.png",
+      "output": "single"
+    },
+    "plugins": ["expo-router"]
+  }
+}

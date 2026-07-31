@@ -1,0 +1,14 @@
+{
+  "name": "@app/core",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "main": "src/index.js",
+  "dependencies": {
+    "socket.io-client": "^4.7.5",
+    "zustand": "^4.5.2"
+  },
+  "peerDependencies": {
+    "react": "*"
+  }
+}

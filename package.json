@@ -1,0 +1,20 @@
+{
+  "name": "appointment-platform-frontend",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "web": "npm run web --workspace apps/mobile",
+    "start": "npm run start --workspace apps/mobile",
+    "android": "npm run android --workspace apps/mobile",
+    "ios": "npm run ios --workspace apps/mobile",
+    "lint": "eslint . --ext .js,.jsx",
+    "test": "vitest run"
+  },
+  "devDependencies": {
+    "eslint": "^8.57.0",
+    "vitest": "^1.5.0"
+  }
+}

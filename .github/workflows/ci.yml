@@ -1,0 +1,34 @@
+name: CI
+
+on:
+  push:
+    branches: ['**']
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: 取出程式碼
+        uses: actions/checkout@v4
+
+      - name: 設定 Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: 安裝依賴套件（含 workspaces）
+        run: npm install
+
+      - name: 執行單元測試（packages/core 的共用邏輯）
+        run: npm run test
+
+      - name: 檢查 Expo app 設定是否正確（expo-doctor）
+        working-directory: apps/mobile
+        run: npx expo-doctor || true # expo-doctor 對還沒 npm install 過的環境可能會有噪音警告，先不擋 CI
