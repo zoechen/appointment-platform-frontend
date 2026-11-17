@@ -51,19 +51,61 @@ appointment-platform-frontend/
 聊天氣泡（對話串畫面）跟浮動的「新增預約」按鈕沒有對應的官方元件，
 所以維持用原生 View/Pressable 手刻。
 
-## 安裝與啟動
+## 安裝、啟動與前後端聯調實測指南
+
+### 1. 確保後端與資料庫已啟動
+
+在啟動前端之前，請先於 `appointment-platform-backend` 完成資料庫遷移並啟動後端（預設運行於 `http://localhost:8080`，詳細步驟見後端 `README.md`）：
 
 ```bash
-npm install   # 在 monorepo 根目錄執行，npm workspaces 會一次裝好 packages/core 與 apps/mobile
+cd ../appointment-platform-backend
+npm install
+cp .env.example .env
+npm run migrate
+npm run dev
+```
+
+### 2. 安裝前端套件並設定環境變數
+
+```bash
+cd ../appointment-platform-frontend
+npm install   # 在 monorepo 根目錄執行，npm workspaces 會一次裝好 packages/core、apps/mobile 與 apps/admin
 
 cp apps/mobile/.env.example apps/mobile/.env
-# 編輯 apps/mobile/.env，填入後端 API 網址與 Google OAuth Client ID
-
-npm run web       # 在瀏覽器開發（RWD 版）
-npm run start      # 開 Expo Dev Tools，可選 iOS / Android 模拟器或實機
-npm run ios         # 需要 macOS + Xcode
-npm run android       # 需要 Android Studio / 模擬器
+cp apps/admin/.env.example apps/admin/.env
+# 預設皆指向 http://localhost:8080，本機實測無需修改即可直接連線後端
 ```
+
+### 3. 啟動店家端 App（`apps/mobile`）與系統管理後台（`apps/admin`）
+
+```bash
+# 啟動店家端 Web 版（RWD，瀏覽器開啟 http://localhost:8081）
+npm run web
+
+# 或開啟 Expo Dev Tools（可選 iOS / Android 模擬器或實機）
+npm run start
+npm run ios         # 需要 macOS + Xcode
+npm run android     # 需要 Android Studio / 模擬器
+
+# 另開一個終端機視窗，啟動跨租戶系統管理後台（瀏覽器開啟 http://localhost:5174）
+npm run admin
+```
+
+### 4. 核心功能端對端實測流程
+
+1. **店家註冊與登入**：
+   - 開啟店家端畫面（`http://localhost:8081`），切換至「點此註冊」，輸入姓名、Email 與密碼（至少 8 碼）建立新店家與負責人（Owner）帳號。
+2. **新增與編輯預約（含快速日期／時段選擇與衝突檢查）**：
+   - 在「📅 預約」分頁點擊右下角「＋」新增預約，使用表單上的「今天／明天／後天」與快速時段按鈕（如 `14:00`、`+60 分鐘`）儲存預約。
+   - 嘗試在同一日期與重疊時段再次新增預約，驗證系統是否正確攔截並提示「該時段已有其他預約」。
+3. **多員工邀請與角色權限驗證**：
+   - 切至「👤 帳號」分頁，在「店員管理與邀請」輸入店員 Email（例如 `staff1@example.com`），點擊「產生店員邀請連結」。
+   - 複製顯示的邀請網址（`/invite/<token>`）於無痕視窗開啟，確認可預覽店家名稱、設定姓名與密碼並直接登入為店員（`staff`）。
+   - 驗證店員身分在「👤 帳號」分頁僅能檢視已綁定通路，不會出現綁定／解綁與邀請店員按鈕。
+4. **跨租戶管理後台與即時斷線驗證**：
+   - 開啟管理後台（`http://localhost:5174`），使用 `npm run create-admin` 建立的超級管理員帳號登入。
+   - 在「使用者管理」查看剛剛登入的店員在線綠燈（`IsOnline`），點擊「停用」並於確認對話框按確定，驗證店家端該店員畫面在操作時立即被攔截並自動退回登入頁。
+   - 點擊左側「操作稽核紀錄」（`/audit-logs`），確認管理員的停用操作已完整記錄。
 
 ## 環境變數（`apps/mobile/.env`）
 
@@ -89,12 +131,8 @@ OAuth Client ID**：
 ## 測試
 
 ```bash
-npm run test   # 目前涵蓋 packages/core 的 formatters.js 單元測試
+npm run test   # 執行 packages/core 的 formatters 與各 Zustand Store / apiClient 整合測試
 ```
-
-`packages/core` 的 store（`authStore` / `appointmentsStore` 等）目前沒有自動化測試，
-因為牽涉到呼叫後端 API 與 Socket.IO 連線；建議之後補上用 `msw`（Mock Service Worker）
-模擬後端回應來測試 store 的行為。
 
 ## 疑難排解
 
@@ -120,18 +158,10 @@ npm run test   # 目前涵蓋 packages/core 的 formatters.js 單元測試
 
 這些都只是套件本身標記為 legacy 的警告，不影響安裝與執行，可以忽略。裝完後執行 `npm audit` 看有沒有需要處理的安全性漏洞，非急迫可以之後再處理。
 
-## 已知限制 / 待改進
+## 架構設計重點與近期優化
 
-1. **日期時間輸入是純文字框**（`YYYY-MM-DD` / `HH:mm`），還沒換成原生的日期時間選擇器；
-   `AppointmentForm.js` 裡有說明為什麼先這樣做。
-2. **時區處理簡化**：目前是把使用者裝置的當地時間直接組字串送給後端，
-   沒有另外處理「店家設定時區」跟「裝置時區」不同的情況（跟後端設計文件列的
-   待確認事項一致）。
-3. **Facebook 綁定完成後不會自動偵測**：使用者授權完成回到 App 後，
-   需要手動下拉重新整理「帳號」頁面才會看到新綁定的通路，
-   之後可以改成 App 用 `Linking` 監聽 deep link 回跳自動刷新。
-4. Tab 導覽用的是 Expo Router 內建的 `Tabs`（React Navigation），
-   沒有用 antd-mobile-rn 自己的 `TabBar` 元件——兩者職責不同（一個是「畫面路由」，
-   一個是「畫面內的分頁 UI」），混用容易衝突，所以導覽維持用 Expo Router 原生方式，
-   只有畫面「內容」用 antd 元件。
-5. 目前沒有寫 E2E 測試（例如 Detox / Playwright），這塊之後可以再補。
+1. **跨平台互動式日期與時段選擇**：`AppointmentForm.js` 除保留文字輸入外，已內建「今天／明天／後天／前後日切換」與快速時段／時長選擇按鈕，兼顧手機端與網頁端操作體感。
+2. **店家時區一致性**：前端送出與編輯預約時，統一透過 `@app/core` 的 `zonedDateTimeToIso` 與 `toZonedDateAndTime` 依店家設定的 `TimeZone`（預設 `Asia/Taipei`）換算為標準 UTC ISO 時間。
+3. **Facebook 綁定自動刷新與粉專勾選**：使用者完成 Facebook OAuth 回到 App 前景時，會透過 `AppState` 自動重新整理通路清單；若管理多個粉專，可直接在帳號頁勾選欲綁定的粉專與是否一併綁定 Instagram。
+4. **手機端加密儲存與 401 自動登出**：手機端優先透過 `expo-secure-store` 儲存敏感 JWT、啟動時自動檢查 `exp` 到期時間，且當 API 回傳 `401` 時自動清除狀態並導回登入頁。
+5. Tab 導覽用的是 Expo Router 內建的 `Tabs`（React Navigation），沒有用 antd-mobile-rn 自己的 `TabBar` 元件——兩者職責不同（一個是「畫面路由」，一個是「畫面內的分頁 UI」），只有畫面「內容」用 antd 元件。

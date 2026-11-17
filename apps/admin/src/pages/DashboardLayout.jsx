@@ -56,6 +56,7 @@ export default function DashboardLayout() {
         <nav style={{ display: 'flex', flexDirection: 'column', gap: 4, flex: 1 }}>
           <NavItem to="/staff">使用者管理</NavItem>
           <NavItem to="/businesses">店家管理</NavItem>
+          <NavItem to="/audit-logs">操作稽核紀錄</NavItem>
         </nav>
 
         <div style={{ borderTop: '1px solid var(--border)', paddingTop: 14 }}>

@@ -84,3 +84,41 @@ export function StatCard({ label, value }) {
     </div>
   )
 }
+
+export function Pagination({ page, limit, total, onPageChange }) {
+  const totalPages = Math.max(1, Math.ceil((total || 0) / (limit || 1)))
+  if (totalPages <= 1) return null
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        marginTop: 16,
+        fontSize: 13,
+        color: 'var(--text-muted)'
+      }}
+    >
+      <span>
+        共 {total} 筆 · 第 {page} / {totalPages} 頁
+      </span>
+      <div style={{ display: 'flex', gap: 8 }}>
+        <button
+          disabled={page <= 1}
+          onClick={() => onPageChange(page - 1)}
+          style={{ ...secondaryButtonStyle, opacity: page <= 1 ? 0.45 : 1 }}
+        >
+          上一頁
+        </button>
+        <button
+          disabled={page >= totalPages}
+          onClick={() => onPageChange(page + 1)}
+          style={{ ...secondaryButtonStyle, opacity: page >= totalPages ? 0.45 : 1 }}
+        >
+          下一頁
+        </button>
+      </div>
+    </div>
+  )
+}

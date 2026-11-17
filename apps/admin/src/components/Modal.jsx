@@ -1,3 +1,5 @@
+import { primaryButtonStyle, secondaryButtonStyle } from './ui.jsx'
+
 export function Modal({ title, onClose, children, footer }) {
   return (
     <div
@@ -37,5 +39,44 @@ export function Modal({ title, onClose, children, footer }) {
         {footer && <div style={{ marginTop: 20, display: 'flex', gap: 10, justifyContent: 'flex-end' }}>{footer}</div>}
       </div>
     </div>
+  )
+}
+
+/**
+ * 客製化的確認對話框，取代瀏覽器原生的 window.confirm。
+ */
+export function ConfirmModal({
+  title = '確認操作',
+  message,
+  confirmLabel = '確定',
+  cancelLabel = '取消',
+  danger = false,
+  loading = false,
+  onConfirm,
+  onCancel
+}) {
+  const confirmStyle = danger
+    ? { ...primaryButtonStyle, background: 'var(--danger)' }
+    : primaryButtonStyle
+
+  return (
+    <Modal
+      title={title}
+      onClose={onCancel}
+      footer={
+        <>
+          <button onClick={onCancel} disabled={loading} style={secondaryButtonStyle}>
+            {cancelLabel}
+          </button>
+          <button onClick={onConfirm} disabled={loading} style={confirmStyle}>
+            {loading ? '處理中…' : confirmLabel}
+          </button>
+        </>
+      }
+    >
+      <p style={{ margin: 0, fontSize: 14, color: 'var(--text-secondary)', lineHeight: 1.6 }}>
+        {message}
+      </p>
+    </Modal>
   )
 }

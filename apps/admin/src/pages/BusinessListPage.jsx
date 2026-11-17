@@ -3,20 +3,28 @@ import { useNavigate } from 'react-router-dom'
 import { request } from '../api.js'
 import { DataTable } from '../components/DataTable.jsx'
 import { Badge } from '../components/Badge.jsx'
-import { PageHeader, inputStyle, secondaryButtonStyle } from '../components/ui.jsx'
+import { PageHeader, Pagination, inputStyle, secondaryButtonStyle } from '../components/ui.jsx'
+
+const PAGE_LIMIT = 15
 
 export default function BusinessListPage() {
   const navigate = useNavigate()
   const [businesses, setBusinesses] = useState([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [error, setError] = useState('')
 
-  async function load(searchTerm) {
+  async function load(searchTerm, targetPage = 1) {
     setLoading(true)
     try {
-      const data = await request('/admin/businesses', { query: { search: searchTerm } })
+      const data = await request('/admin/businesses', {
+        query: { search: searchTerm, page: targetPage, limit: PAGE_LIMIT }
+      })
       setBusinesses(data.businesses)
+      setTotal(data.total ?? data.businesses.length)
+      setPage(targetPage)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -25,12 +33,12 @@ export default function BusinessListPage() {
   }
 
   useEffect(() => {
-    load('')
+    load('', 1)
   }, [])
 
   function handleSearchSubmit(e) {
     e.preventDefault()
-    load(search)
+    load(search, 1)
   }
 
   const columns = [
@@ -68,13 +76,21 @@ export default function BusinessListPage() {
       {loading ? (
         <p style={{ color: 'var(--text-muted)' }}>載入中…</p>
       ) : (
-        <DataTable
-          columns={columns}
-          rows={businesses}
-          rowKey="BusinessId"
-          emptyText="沒有符合的店家"
-          onRowClick={(row) => navigate(`/businesses/${row.BusinessId}`)}
-        />
+        <>
+          <DataTable
+            columns={columns}
+            rows={businesses}
+            rowKey="BusinessId"
+            emptyText="沒有符合的店家"
+            onRowClick={(row) => navigate(`/businesses/${row.BusinessId}`)}
+          />
+          <Pagination
+            page={page}
+            limit={PAGE_LIMIT}
+            total={total}
+            onPageChange={(nextPage) => load(search, nextPage)}
+          />
+        </>
       )}
     </div>
   )

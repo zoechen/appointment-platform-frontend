@@ -3,6 +3,7 @@ import { useParams, Link } from 'react-router-dom'
 import { request } from '../api.js'
 import { DataTable } from '../components/DataTable.jsx'
 import { Badge } from '../components/Badge.jsx'
+import { ConfirmModal } from '../components/Modal.jsx'
 import { PageHeader, StatCard, secondaryButtonStyle } from '../components/ui.jsx'
 
 const PLATFORM_LABEL = { facebook: 'Facebook', instagram: 'Instagram', line: 'LINE' }
@@ -13,6 +14,8 @@ export default function BusinessDetailPage() {
   const [stats, setStats] = useState(null)
   const [conversations, setConversations] = useState([])
   const [loading, setLoading] = useState(true)
+  const [confirmingToggle, setConfirmingToggle] = useState(false)
+  const [toggling, setToggling] = useState(false)
   const [error, setError] = useState('')
 
   async function load() {
@@ -37,22 +40,20 @@ export default function BusinessDetailPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id])
 
-  async function handleToggleDisabled() {
-    const confirmed = window.confirm(
-      business.IsDisabled
-        ? `確定要重新啟用「${business.Name}」嗎？`
-        : `確定要停用「${business.Name}」嗎？停用後這個店家底下所有員工都無法登入。`
-    )
-    if (!confirmed) return
-
+  async function handleConfirmToggleDisabled() {
+    setToggling(true)
     try {
       const data = await request(`/admin/businesses/${id}`, {
         method: 'PATCH',
         body: { isDisabled: !business.IsDisabled }
       })
       setBusiness(data.business)
+      setConfirmingToggle(false)
     } catch (err) {
-      alert(err.message)
+      setError(err.message)
+      setConfirmingToggle(false)
+    } finally {
+      setToggling(false)
     }
   }
 
@@ -89,11 +90,27 @@ export default function BusinessDetailPage() {
         <PageHeader title={business.Name} subtitle={business.Email} />
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {business.IsDisabled ? <Badge tone="danger">已停用</Badge> : <Badge tone="ok">正常</Badge>}
-          <button onClick={handleToggleDisabled} style={secondaryButtonStyle}>
+          <button onClick={() => setConfirmingToggle(true)} style={secondaryButtonStyle}>
             {business.IsDisabled ? '重新啟用' : '停用這個店家'}
           </button>
         </div>
       </div>
+
+      {confirmingToggle && (
+        <ConfirmModal
+          title={business.IsDisabled ? '重新啟用店家' : '停用店家'}
+          message={
+            business.IsDisabled
+              ? `確定要重新啟用「${business.Name}」嗎？`
+              : `確定要停用「${business.Name}」嗎？停用後這個店家底下所有員工將立即斷線且無法登入。`
+          }
+          confirmLabel={business.IsDisabled ? '確定啟用' : '確定停用'}
+          danger={!business.IsDisabled}
+          loading={toggling}
+          onConfirm={handleConfirmToggleDisabled}
+          onCancel={() => setConfirmingToggle(false)}
+        />
+      )}
 
       <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 30 }}>
         <StatCard label="對話數" value={stats.ConversationCount} />

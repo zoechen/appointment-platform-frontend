@@ -2,28 +2,40 @@ import { useEffect, useState } from 'react'
 import { request } from '../api.js'
 import { DataTable } from '../components/DataTable.jsx'
 import { Badge, OnlineDot } from '../components/Badge.jsx'
-import { Modal } from '../components/Modal.jsx'
+import { Modal, ConfirmModal } from '../components/Modal.jsx'
 import {
   PageHeader,
   Field,
   ActionButton,
+  Pagination,
   inputStyle,
   primaryButtonStyle,
   secondaryButtonStyle
 } from '../components/ui.jsx'
 
+const PAGE_LIMIT = 15
+
 export default function StaffListPage() {
   const [staff, setStaff] = useState([])
+  const [total, setTotal] = useState(0)
+  const [page, setPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [search, setSearch] = useState('')
   const [editingStaff, setEditingStaff] = useState(null)
+  const [confirmingRow, setConfirmingRow] = useState(null)
+  const [toggling, setToggling] = useState(false)
   const [error, setError] = useState('')
 
-  async function load(searchTerm) {
+  async function load(searchTerm, targetPage = 1) {
     setLoading(true)
+    setError('')
     try {
-      const data = await request('/admin/staff', { query: { search: searchTerm } })
+      const data = await request('/admin/staff', {
+        query: { search: searchTerm, page: targetPage, limit: PAGE_LIMIT }
+      })
       setStaff(data.staff)
+      setTotal(data.total ?? data.staff.length)
+      setPage(targetPage)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -32,30 +44,31 @@ export default function StaffListPage() {
   }
 
   useEffect(() => {
-    load('')
+    load('', 1)
   }, [])
 
   function handleSearchSubmit(e) {
     e.preventDefault()
-    load(search)
+    load(search, 1)
   }
 
-  async function handleToggleDisabled(row) {
-    const confirmed = window.confirm(
-      row.IsDisabled
-        ? `確定要重新啟用「${row.DisplayName}」嗎？`
-        : `確定要停用「${row.DisplayName}」嗎？停用後這個帳號將無法登入。`
-    )
-    if (!confirmed) return
-
+  async function handleConfirmToggleDisabled() {
+    if (!confirmingRow) return
+    setToggling(true)
     try {
-      const data = await request(`/admin/staff/${row.StaffId}`, {
+      const data = await request(`/admin/staff/${confirmingRow.StaffId}`, {
         method: 'PATCH',
-        body: { isDisabled: !row.IsDisabled }
+        body: { isDisabled: !confirmingRow.IsDisabled }
       })
-      setStaff((prev) => prev.map((s) => (s.StaffId === row.StaffId ? { ...s, ...data.staff } : s)))
+      setStaff((prev) =>
+        prev.map((s) => (s.StaffId === confirmingRow.StaffId ? { ...s, ...data.staff } : s))
+      )
+      setConfirmingRow(null)
     } catch (err) {
-      alert(err.message)
+      setError(err.message)
+      setConfirmingRow(null)
+    } finally {
+      setToggling(false)
     }
   }
 
@@ -80,7 +93,7 @@ export default function StaffListPage() {
       render: (row) => (
         <div style={{ display: 'flex', gap: 8 }}>
           <ActionButton onClick={() => setEditingStaff(row)}>編輯</ActionButton>
-          <ActionButton danger={!row.IsDisabled} onClick={() => handleToggleDisabled(row)}>
+          <ActionButton danger={!row.IsDisabled} onClick={() => setConfirmingRow(row)}>
             {row.IsDisabled ? '啟用' : '停用'}
           </ActionButton>
         </div>
@@ -109,7 +122,31 @@ export default function StaffListPage() {
       {loading ? (
         <p style={{ color: 'var(--text-muted)' }}>載入中…</p>
       ) : (
-        <DataTable columns={columns} rows={staff} rowKey="StaffId" emptyText="沒有符合的使用者" />
+        <>
+          <DataTable columns={columns} rows={staff} rowKey="StaffId" emptyText="沒有符合的使用者" />
+          <Pagination
+            page={page}
+            limit={PAGE_LIMIT}
+            total={total}
+            onPageChange={(nextPage) => load(search, nextPage)}
+          />
+        </>
+      )}
+
+      {confirmingRow && (
+        <ConfirmModal
+          title={confirmingRow.IsDisabled ? '重新啟用帳號' : '停用使用者帳號'}
+          message={
+            confirmingRow.IsDisabled
+              ? `確定要重新啟用「${confirmingRow.DisplayName}」嗎？`
+              : `確定要停用「${confirmingRow.DisplayName}」嗎？停用後這個帳號將立即斷線且無法登入。`
+          }
+          confirmLabel={confirmingRow.IsDisabled ? '確定啟用' : '確定停用'}
+          danger={!confirmingRow.IsDisabled}
+          loading={toggling}
+          onConfirm={handleConfirmToggleDisabled}
+          onCancel={() => setConfirmingRow(null)}
+        />
       )}
 
       {editingStaff && (
