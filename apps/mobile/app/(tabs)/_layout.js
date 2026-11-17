@@ -1,6 +1,9 @@
-import { Tabs } from 'expo-router'
+import { useEffect } from 'react'
+import { Tabs, Redirect } from 'expo-router'
 import { Text } from 'react-native'
+import { useAuthStore, selectIsAuthenticated } from '@app/core'
 import { useRealtimeSync } from '../../src/useRealtimeSync.js'
+import { clearSession } from '../../src/sessionStorage.js'
 
 function TabIcon({ label, focused }) {
   return (
@@ -11,7 +14,18 @@ function TabIcon({ label, focused }) {
 // 分頁順序／命名對齊設計稿：對話 → 預約 → 帳號
 // （帳號頁把原本獨立的「通路綁定」分頁併進去了，見 app/(tabs)/account/index.js）
 export default function TabsLayout() {
+  const isAuthenticated = useAuthStore(selectIsAuthenticated)
   useRealtimeSync()
+
+  useEffect(() => {
+    if (!isAuthenticated) {
+      clearSession().catch(() => {})
+    }
+  }, [isAuthenticated])
+
+  if (!isAuthenticated) {
+    return <Redirect href="/login" />
+  }
 
   return (
     <Tabs

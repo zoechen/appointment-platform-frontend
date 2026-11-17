@@ -97,3 +97,8 @@ function applyAuthResponse(set, data) {
 export function selectIsAuthenticated(state) {
   return state.status === 'authenticated'
 }
+
+// 當帶有 Bearer token 的 API 呼叫收到 401（憑證過期或失效）時，自動執行登出並切斷即時連線
+apiClient.setOnUnauthorized(() => {
+  useAuthStore.getState().logout()
+})

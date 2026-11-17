@@ -9,10 +9,18 @@
 let baseUrl = ''
 let realtimeUrl = ''
 let token = null
+let onUnauthorizedHandler = null
 
-export function configure({ baseUrl: url, realtimeUrl: rtUrl }) {
+export function configure({ baseUrl: url, realtimeUrl: rtUrl, onUnauthorized }) {
   baseUrl = url
   realtimeUrl = rtUrl || url
+  if (onUnauthorized !== undefined) {
+    onUnauthorizedHandler = onUnauthorized
+  }
+}
+
+export function setOnUnauthorized(handler) {
+  onUnauthorizedHandler = handler
 }
 
 export function getRealtimeUrl() {
@@ -63,6 +71,7 @@ export async function request(path, { method = 'GET', body, query } = {}) {
   }
 
   const headers = { 'Content-Type': 'application/json' }
+  const hadToken = Boolean(token)
   if (token) headers.Authorization = `Bearer ${token}`
 
   const res = await fetch(url.toString(), {
@@ -75,10 +84,22 @@ export async function request(path, { method = 'GET', body, query } = {}) {
   const data = isJson ? await res.json().catch(() => null) : null
 
   if (!res.ok) {
-    throw new ApiError(data?.error || `API 錯誤（${res.status}）`, res.status, data)
+    const err = new ApiError(data?.error || `API 錯誤（${res.status}）`, res.status, data)
+    if (res.status === 401 && hadToken && typeof onUnauthorizedHandler === 'function') {
+      onUnauthorizedHandler(err)
+    }
+    throw err
   }
 
   return data
 }
 
-export const apiClient = { configure, setToken, clearToken, getToken, getRealtimeUrl, request }
+export const apiClient = {
+  configure,
+  setToken,
+  clearToken,
+  getToken,
+  getRealtimeUrl,
+  setOnUnauthorized,
+  request
+}

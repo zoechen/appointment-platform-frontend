@@ -10,6 +10,43 @@ import { saveSession } from '../src/sessionStorage.js'
 // Web 上完成 OAuth 後要呼叫這個，讓彈出的驗證視窗知道流程結束了。
 WebBrowser.maybeCompleteAuthSession()
 
+function hasConfiguredGoogleClientId() {
+  if (Platform.OS === 'web') return Boolean(process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID)
+  if (Platform.OS === 'ios') return Boolean(process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID)
+  if (Platform.OS === 'android') return Boolean(process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID)
+  return false
+}
+
+/**
+ * 將 Google.useAuthRequest 獨立成子元件：
+ * 因為 expo-auth-session/providers/google 在未設定當前平台的 Client ID 時會直接拋出例外，
+ * 拆開後只有在 .env 確實填了對應平台的 Client ID 時才掛載，讓純 Email+密碼登入在未設定 Google OAuth 時也能正常運作。
+ */
+function GoogleLoginButton({ onSuccess }) {
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
+    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
+    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
+    responseType: 'id_token',
+    scopes: ['openid', 'profile', 'email']
+  })
+
+  useEffect(() => {
+    if (response?.type !== 'success') return
+    const idToken = response.params?.id_token
+    if (idToken) onSuccess(idToken)
+  }, [response, onSuccess])
+
+  return (
+    <Text
+      style={[styles.switchText, !request && styles.disabledText]}
+      onPress={() => request && promptAsync()}
+    >
+      或使用 Google 帳號登入
+    </Text>
+  )
+}
+
 export default function LoginScreen() {
   const router = useRouter()
   const status = useAuthStore((state) => state.status)
@@ -28,27 +65,7 @@ export default function LoginScreen() {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [name, setName] = useState('')
-
-  // Google 登入先當成次要選項保留：跟後端 /auth/google 的合約一致
-  // （後端要驗證 id_token 的簽章）。三個平台各自要在 Google Cloud Console
-  // 建立對應的 OAuth Client ID，見 apps/mobile/.env.example 的說明。
-  const [request, response, promptAsync] = Google.useAuthRequest({
-    iosClientId: process.env.EXPO_PUBLIC_GOOGLE_IOS_CLIENT_ID,
-    androidClientId: process.env.EXPO_PUBLIC_GOOGLE_ANDROID_CLIENT_ID,
-    webClientId: process.env.EXPO_PUBLIC_GOOGLE_WEB_CLIENT_ID,
-    responseType: 'id_token',
-    scopes: ['openid', 'profile', 'email']
-  })
-
-  useEffect(() => {
-    if (response?.type !== 'success') return
-    const idToken = response.params?.id_token
-    if (!idToken) return
-
-    loginWithGoogleIdToken(idToken).catch(() => {
-      // 錯誤已經存在 authStore.error，畫面上會顯示，這裡不用額外處理
-    })
-  }, [response, loginWithGoogleIdToken])
+  const googleEnabled = hasConfiguredGoogleClientId()
 
   useEffect(() => {
     if (status === 'authenticated' && authState.token) {
@@ -115,16 +132,18 @@ export default function LoginScreen() {
           {isLogin ? '還沒有帳號？點此註冊' : '已經有帳號了？點此登入'}
         </Text>
 
-        <WhiteSpace size="lg" />
-        <View style={styles.divider} />
-        <WhiteSpace />
-
-        <Text
-          style={[styles.switchText, !request && styles.disabledText]}
-          onPress={() => request && promptAsync()}
-        >
-          或使用 Google 帳號登入
-        </Text>
+        {googleEnabled ? (
+          <>
+            <WhiteSpace size="lg" />
+            <View style={styles.divider} />
+            <WhiteSpace />
+            <GoogleLoginButton
+              onSuccess={(idToken) => {
+                loginWithGoogleIdToken(idToken).catch(() => {})
+              }}
+            />
+          </>
+        ) : null}
       </View>
     </ScrollView>
   )

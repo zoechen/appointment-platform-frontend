@@ -50,6 +50,7 @@ export default function ConversationThreadScreen() {
   const canSendFreeForm = conversation ? isWithinMessagingWindow(conversation, conversation.Platform) : true
 
   useEffect(() => {
+    if (!id || id === 'undefined') return
     fetchMessages(id).catch((err) => Toast.fail(err.message))
     if (!conversation) {
       fetchConversation(id).catch(() => {})

@@ -2,22 +2,18 @@ import { useEffect, useMemo, useState } from 'react'
 import { View, StyleSheet, ScrollView, ActivityIndicator } from 'react-native'
 import { useLocalSearchParams, useRouter, Stack } from 'expo-router'
 import { List, Button, Modal, WhiteSpace } from '@ant-design/react-native'
-import { useAppointmentsStore, formatAppointmentStatus } from '@app/core'
+import {
+  useAuthStore,
+  useAppointmentsStore,
+  formatAppointmentStatus,
+  toZonedDateAndTime
+} from '@app/core'
 import { AppointmentForm } from '../../../src/components/AppointmentForm.js'
-
-function toDateAndTime(isoString) {
-  // 拆成 <input type=date/time> 風格的純文字，給表單用「裝置當地時間」顯示與編輯。
-  const d = new Date(isoString)
-  const pad = (n) => String(n).padStart(2, '0')
-  return {
-    date: `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`,
-    time: `${pad(d.getHours())}:${pad(d.getMinutes())}`
-  }
-}
 
 export default function AppointmentDetailScreen() {
   const { id } = useLocalSearchParams()
   const router = useRouter()
+  const timeZone = useAuthStore((state) => state.business?.TimeZone) || 'Asia/Taipei'
   const items = useAppointmentsStore((state) => state.items)
   const fetchAppointment = useAppointmentsStore((state) => state.fetchAppointment)
   const updateAppointment = useAppointmentsStore((state) => state.updateAppointment)
@@ -29,7 +25,7 @@ export default function AppointmentDetailScreen() {
   const [submitting, setSubmitting] = useState(false)
 
   useEffect(() => {
-    if (appointment) return
+    if (!id || id === 'undefined' || id === 'new' || appointment) return
     setLoading(true)
     fetchAppointment(id)
       .catch((err) => Modal.alert('讀取失敗', err.message, [{ text: '知道了' }]))
@@ -38,8 +34,8 @@ export default function AppointmentDetailScreen() {
 
   const initialFormValues = useMemo(() => {
     if (!appointment) return null
-    const start = toDateAndTime(appointment.StartTime)
-    const end = toDateAndTime(appointment.EndTime)
+    const start = toZonedDateAndTime(appointment.StartTime, timeZone)
+    const end = toZonedDateAndTime(appointment.EndTime, timeZone)
     return {
       title: appointment.Title,
       customerName: appointment.CustomerName || '',
@@ -48,7 +44,7 @@ export default function AppointmentDetailScreen() {
       startTime: start.time,
       endTime: end.time
     }
-  }, [appointment])
+  }, [appointment, timeZone])
 
   async function handleSave(values) {
     setSubmitting(true)
